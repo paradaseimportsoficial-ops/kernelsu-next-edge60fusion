@@ -10,14 +10,15 @@ jobs:
       - name: Baixar o código do repositório
         uses: actions/checkout@v4
 
-      - name: Configurar ambiente e repositório Android Kernel
+      - name: Configurar ambiente e repositório Android Kernel (GKI 6.1)
         run: |
           sudo apt-get update
           sudo apt-get install -y repo ccache bison libssl-dev libelf-dev python3-pip lz4 pigz
           pip3 install gdown
           mkdir -p android-kernel
           cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
+          # Alterado para a branch common-android14-6.1 compatível com o Edge 60 Fusion
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android14-6.1 --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
       - name: Integrar KernelSU Next no código-fonte
@@ -35,13 +36,13 @@ jobs:
           sudo swapon /swapfile
           free -h
 
-      - name: Compilar Kernel do Zero (GKI 5.10)
+      - name: Compilar Kernel do Zero (GKI 6.1)
         run: |
           cd android-kernel
           # Remove o sufixo -dirty do Git
           touch common/.scmversion
           
-          # Compila com a assinatura personalizada do Técnico Root V1
+          # Compila com a assinatura personalizada do Técnico Root V1 na base 6.1
           BUILD_CONFIG=common/build.config.gki.aarch64 LOCALVERSION=-tecnico-root-v1 ./build/build.sh
 
       - name: Processar e Reempacotar com Magiskboot
@@ -49,7 +50,7 @@ jobs:
           mkdir -p work
           cd work
 
-          # 1. Baixar o boot.img original do Google Drive (Edge 60 Fusion do cliente)
+          # 1. Baixar o boot.img original do Google Drive (Edge 60 Fusion)
           gdown "https://drive.google.com/uc?id=1LbVjSy8xJotmJxsjI-RAIG79IgIWmP8O" -O boot_stock.img
 
           # 2. Extrair magiskboot do APK do Magisk
