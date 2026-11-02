@@ -13,11 +13,10 @@ jobs:
       - name: Configurar ambiente e repositório Android Kernel (GKI 6.1)
         run: |
           sudo apt-get update
-          sudo apt-get install -y repo ccache bison libssl-dev libelf-dev python3-pip lz4 pigz
+          sudo apt-get install -y repo ccache bison libssl-dev libelf-dev python3-pip lz4 pigz git flex curl cpio
           pip3 install gdown
           mkdir -p android-kernel
           cd android-kernel
-          # Alterado para a branch common-android14-6.1 compatível com o Edge 60 Fusion
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android14-6.1 --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
@@ -36,21 +35,21 @@ jobs:
           sudo swapon /swapfile
           free -h
 
-      - name: Compilar Kernel do Zero (GKI 6.1)
+      - name: Compilar Kernel do Zero com Bazel (Kleaf - GKI 6.1)
         run: |
           cd android-kernel
-          # Remove o sufixo -dirty do Git
-          touch common/.scmversion
+          # Garante o nome da versão personalizada do Técnico Root V1
+          echo "-tecnico-root-v1" > common/localversion
           
-          # Compila com a assinatura personalizada do Técnico Root V1 na base 6.1
-          BUILD_CONFIG=common/build.config.gki.aarch64 LOCALVERSION=-tecnico-root-v1 ./build/build.sh
+          # Compilador Bazel/Kleaf para arquitetura arm64 no Kernel 6.1
+          tools/bazel run //common:kernel_aarch64_dist -- --dist_dir=out
 
       - name: Processar e Reempacotar com Magiskboot
         run: |
           mkdir -p work
           cd work
 
-          # 1. Baixar o boot.img original do Google Drive (Edge 60 Fusion)
+          # 1. Baixar o boot.img original do Google Drive (Edge 60 Fusion do cliente)
           gdown "https://drive.google.com/uc?id=1LbVjSy8xJotmJxsjI-RAIG79IgIWmP8O" -O boot_stock.img
 
           # 2. Extrair magiskboot do APK do Magisk
@@ -62,7 +61,7 @@ jobs:
           # 3. Descompactar o boot.img estoque para inspecionar o formato do kernel
           ./magiskboot unpack boot_stock.img
 
-          # 4. Localizar a imagem criada pela compilação
+          # 4. Localizar a imagem criada pela compilação do Bazel
           COMPILED_IMAGE=$(find ../android-kernel/out -name "Image" -type f | head -n 1)
           echo "Kernel compilado encontrado em: $COMPILED_IMAGE"
 
